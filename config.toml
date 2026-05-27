@@ -1,0 +1,13 @@
+# poke button → motor mapping.
+#
+# Fields:
+#   motor  "A" | "B" | "C"   NXT output port the arm is plugged into.
+#   angle  int (degrees)     Rotation on press; unpress rotates back by the same amount.
+#   power  int (-100..100)   Drive power. Sign sets press direction; unpress inverts it.
+#   hold   bool              true = brake-hold position until unpress; false = coast.
+
+[buttons.a]
+motor = "A"
+angle = 90
+power = 75
+hold = true

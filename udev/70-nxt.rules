@@ -1,0 +1,3 @@
+# LEGO Mindstorms NXT — non-root USB access.
+# Install: sudo cp 70-nxt.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules
+SUBSYSTEM=="usb", ATTR{idVendor}=="0694", ATTR{idProduct}=="0002", MODE="0666"
