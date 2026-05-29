@@ -16,9 +16,7 @@ from poke.protocol import decode, default_socket_path, encode
 def _dispatch(controller: Controller, req: dict) -> dict:
     cmd = req.get("cmd")
     if cmd == "press":
-        return {"ok": True, "result": controller.press(req["button"])}
-    if cmd == "unpress":
-        return {"ok": True, "result": controller.unpress(req["button"])}
+        return {"ok": True, "result": controller.press(req["button"], req.get("hold_secs"))}
     if cmd == "status":
         return {"ok": True, "result": controller.status()}
     if cmd == "stop":
@@ -52,7 +50,7 @@ def _handle_client(conn: socket.socket, controller: Controller) -> None:
 
 def serve(config_path: Path, socket_path: Path) -> None:
     config = Config.load(config_path)
-    controller = Controller(config)
+    controller = Controller(config, config_path=config_path)
     socket_path.parent.mkdir(parents=True, exist_ok=True)
     if socket_path.exists():
         socket_path.unlink()

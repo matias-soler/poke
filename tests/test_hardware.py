@@ -21,10 +21,9 @@ def test_find_brick_and_nudge_motor_a():
     brick = find_brick()
     assert brick is not None
 
-    cfg = Config(buttons={"a": ButtonConfig(motor="A", angle=15, power=40, hold=False)})
+    cfg = Config(buttons={"a": ButtonConfig(motor="A", angle=15, power=40)})
     controller = Controller(cfg, brick=brick)
     try:
-        controller.press("a")
-        controller.unpress("a")
+        controller.press("a")  # momentary: drives forward, briefly holds, then releases
     finally:
         controller.close()

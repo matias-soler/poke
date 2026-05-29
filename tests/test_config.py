@@ -22,11 +22,10 @@ def test_load_single_button(tmp_path: Path):
             motor = "A"
             angle = 90
             power = 75
-            hold = true
             """,
         )
     )
-    assert cfg.buttons == {"a": ButtonConfig(motor="A", angle=90, power=75, hold=True)}
+    assert cfg.buttons == {"a": ButtonConfig(motor="A", angle=90, power=75)}
 
 
 def test_motor_normalised_to_upper(tmp_path: Path):
@@ -42,7 +41,6 @@ def test_motor_normalised_to_upper(tmp_path: Path):
         )
     )
     assert cfg.buttons["a"].motor == "A"
-    assert cfg.buttons["a"].hold is True  # default
 
 
 def test_rejects_unknown_motor(tmp_path: Path):

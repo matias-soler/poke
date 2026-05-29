@@ -46,21 +46,35 @@ def _print(resp: dict) -> None:
         raise typer.Exit(1)
 
 
-@app.command()
-def press(button: str, socket: Path = SocketOpt) -> None:
-    """Press a configured button (rotate motor by configured angle)."""
-    _print(_send({"cmd": "press", "button": button}, _resolve_socket(socket)))
+@app.command(context_settings={"ignore_unknown_options": True})
+def press(args: list[str] = typer.Argument(None, metavar="BUTTONS [hold SECONDS]"), socket: Path = SocketOpt) -> None:
+    """Momentary press: drive forward, hold, then release (spring returns the arm).
 
-
-@app.command()
-def unpress(button: str, socket: Path = SocketOpt) -> None:
-    """Unpress a configured button (rotate motor back)."""
-    _print(_send({"cmd": "unpress", "button": button}, _resolve_socket(socket)))
+    Combine button names to act together (e.g. 'ab'). Append 'hold N' to keep the
+    button(s) down N seconds before releasing, e.g. 'press ab hold 5'.
+    """
+    if not args:
+        typer.echo("usage: poke press BUTTONS [hold SECONDS]", err=True)
+        raise typer.Exit(2)
+    buttons = args[0]
+    rest = args[1:]
+    req: dict = {"cmd": "press", "button": buttons}
+    if rest:
+        if len(rest) == 2 and rest[0] == "hold":
+            try:
+                req["hold_secs"] = float(rest[1])
+            except ValueError:
+                typer.echo(f"hold seconds must be a number, got {rest[1]!r}", err=True)
+                raise typer.Exit(2)
+        else:
+            typer.echo("usage: poke press BUTTONS [hold SECONDS]", err=True)
+            raise typer.Exit(2)
+    _print(_send(req, _resolve_socket(socket)))
 
 
 @app.command()
 def status(socket: Path = SocketOpt) -> None:
-    """Show per-button state and config."""
+    """Show per-button config."""
     _print(_send({"cmd": "status"}, _resolve_socket(socket)))
 
 
@@ -70,9 +84,12 @@ def stop(socket: Path = SocketOpt) -> None:
     _print(_send({"cmd": "stop"}, _resolve_socket(socket)))
 
 
-@app.command("raw-turn")
+@app.command("raw-turn", context_settings={"ignore_unknown_options": True})
 def raw_turn(motor: str, power: int, degrees: int, socket: Path = SocketOpt) -> None:
-    """Bypass config: turn MOTOR (A/B/C) at POWER (-100..100) by DEGREES."""
+    """Bypass config: turn MOTOR (A/B/C) at POWER (-100..100) by DEGREES.
+
+    POWER may be negative to reverse direction (e.g. ``raw-turn A -55 20``).
+    """
     _print(
         _send(
             {"cmd": "raw_turn", "motor": motor, "power": power, "degrees": degrees},

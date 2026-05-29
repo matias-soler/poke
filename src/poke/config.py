@@ -10,7 +10,6 @@ class ButtonConfig:
     motor: str
     angle: int
     power: int
-    hold: bool
 
     @classmethod
     def from_dict(cls, name: str, d: dict) -> "ButtonConfig":
@@ -23,8 +22,7 @@ class ButtonConfig:
         power = int(d["power"])
         if not -100 <= power <= 100:
             raise ValueError(f"button {name!r}: power must be in [-100, 100]")
-        hold = bool(d.get("hold", True))
-        return cls(motor=motor, angle=angle, power=power, hold=hold)
+        return cls(motor=motor, angle=angle, power=power)
 
 
 @dataclass(frozen=True)

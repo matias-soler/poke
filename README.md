@@ -2,8 +2,8 @@
 
 A tiny tool that drives a **LEGO Mindstorms NXT** brick over USB to physically
 press buttons on a device under test. A motor arm rotates a configured number
-of degrees to "press", then rotates back to "unpress" — useful for exercising
-real hardware UIs from scripts.
+of degrees to "press", briefly holds, then releases so the button's spring
+returns the arm — useful for exercising real hardware UIs from scripts.
 
 ## Architecture
 
@@ -39,8 +39,9 @@ python3 -m venv .venv
 
 ```bash
 # adb-style wrapper (auto-starts poked if not running)
-./poke.sh press a
-./poke.sh unpress a
+./poke.sh press a            # momentary: forward, brief hold, then release (spring returns the arm)
+./poke.sh press ab           # actuate several buttons together (one motor each, in parallel)
+./poke.sh press ab hold 5    # hold the button(s) down 5 seconds before releasing
 ./poke.sh status
 ./poke.sh raw-turn A 75 90
 
@@ -65,9 +66,8 @@ Or use the raw binaries directly:
 ```toml
 [buttons.a]
 motor = "A"      # NXT output port: A | B | C
-angle = 90       # degrees to rotate on press; unpress rotates back the same
+angle = 90       # degrees to rotate forward on press
 power = 75       # drive power, -100..100; sign sets press direction
-hold = true      # brake-hold position until unpress, vs. coast
 ```
 
 ## Tests
@@ -97,7 +97,7 @@ poke/
 ├── udev/70-nxt.rules     # Linux: non-root USB access
 ├── src/poke/
 │   ├── config.py         # tomllib loader + dataclasses
-│   ├── controller.py     # NXT motor wrapper, press state, USB workaround
+│   ├── controller.py     # NXT motor wrapper (stateless), USB workaround
 │   ├── protocol.py       # JSON-line framing + default socket path
 │   ├── daemon.py         # poked: socket server + dispatch
 │   └── client.py         # poke: typer CLI

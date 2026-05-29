@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repo.
 
 ## What this is
 
-`poke` is a small Python tool that drives a **LEGO Mindstorms NXT** brick over USB to physically press buttons on a device under test. A motor arm rotates a configured number of degrees to "press" a button, then rotates back to "unpress".
+`poke` is a small Python tool that drives a **LEGO Mindstorms NXT** brick over USB to physically press buttons on a device under test. A motor arm rotates a configured number of degrees to "press" a button, briefly holds, then releases so the button's spring returns the arm. A single `press` verb covers it (optionally `press <btn> hold N` to hold N seconds); there is no separate unpress.
 
 The user (Matias) uses this for hardware testing — exercising a physical UI repeatably from scripts.
 
@@ -14,11 +14,14 @@ Two binaries, one process owning the hardware:
 
 - **`poked`** — long-running daemon. Owns the USB connection to the NXT brick. Loads `config.toml`, listens on a Unix domain socket (`~/.poke/poked.sock` or `$XDG_RUNTIME_DIR/poked.sock`). Single-user, no auth — relies on filesystem perms (0600).
 - **`poke`** — thin CLI client (typer). Opens the socket, sends one JSON-line request, prints the JSON reply, exits. Examples:
-  - `poke press a`
-  - `poke unpress a`
+  - `poke press a` — momentary: drive forward, briefly hold, then release; the spring returns the arm
+  - `poke press ab` — actuate several buttons together (each on its own motor, in parallel)
+  - `poke press ab hold 5` — hold the button(s) down 5 seconds before releasing
   - `poke status`
   - `poke stop`
   - `poke raw-turn A 75 90`
+
+  `press` is the only actuation verb (no separate unpress — the press self-releases). It accepts a multi-button spec (e.g. `ab`); reply is `{"buttons": [ {per-button result}, ... ]}`. Optional trailing `hold N` keeps the button(s) down N seconds.
 
 Wire protocol: newline-delimited JSON over `AF_UNIX`. Request `{"cmd": "...", ...}`. Reply `{"ok": true|false, "result"|"error": ...}`. See `src/poke/protocol.py`.
 
@@ -28,13 +31,13 @@ Wire protocol: newline-delimited JSON over `AF_UNIX`. Request `{"cmd": "...", ..
 poke/
 ├── CLAUDE.md             # this file
 ├── pyproject.toml        # deps + console_scripts entry points
-├── config.toml           # button → (motor, angle, power, hold)
+├── config.toml           # button → (motor, angle, power)
 ├── udev/70-nxt.rules     # Linux: non-root USB access to the NXT
 ├── .gitignore
 └── src/poke/
     ├── __init__.py
     ├── config.py         # tomllib loader + dataclasses
-    ├── controller.py     # wraps nxt-python Motor; tracks press state
+    ├── controller.py     # wraps nxt-python Motor; stateless (caller tracks press)
     ├── protocol.py       # JSON-line framing + default socket path
     ├── daemon.py         # `poked` entry: socket server + dispatch
     └── client.py         # `poke` entry: typer CLI
@@ -68,9 +71,9 @@ These are **assumptions I haven't confirmed against a real brick** — flag them
 
 - **nxt-python v3 API surface.** I'm calling `nxt.locator.find()`, `brick.get_motor(nxt.motor.Port.A)`, and `motor.turn(power, tacho_units, brake=...)`. Confirm signatures against the installed version (`pip show nxt-python`).
 - **Power range.** Config validates `power ∈ [-100, 100]`. nxt-python may accept up to ±127; widen if needed.
-- **`brake=True` semantics.** Used to implement `hold = true`. Confirm it actually holds position against back-drive on a real motor; if not, we'll need an active position controller.
+- **`brake=True` semantics.** `press` brakes to hold the button down for the hold duration, then idles to release. A *blocked* move is force-idled (`_idle_buttons`/`_idle_motor`) so the motor never stays stalled against a jam — this is a safety invariant, keep it.
 - **macOS USB claim.** libusb usually grabs the NXT cleanly, but some macOS versions need `detach_kernel_driver`. If `nxt.locator.find()` raises a USBError, that's the likely cause.
-- **Tachometer drift.** `motor.turn(power, +N)` then `motor.turn(-power, +N)` is *relative* — an interrupted press leaves the unpress short. If drift shows up, switch to absolute positioning anchored to a zero captured at startup.
+- **Tachometer drift.** `motor.turn` is *relative*; the daemon tracks no absolute position (intentionally stateless/simple). Absolute positioning anchored to a startup zero is the known fix if drift ever matters — deliberately not implemented.
 
 ## Conventions
 
